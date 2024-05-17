@@ -2,10 +2,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import PrettyPrinter
 from typing import Type, Optional, Literal
+import numpy as np
+import torch
 
 from nerfstudio.utils.io import load_from_json
 
-from nerfstudio.data.dataparsers.base_dataparser import DataParserConfig, DataparserOutputs
+from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
+from nerfstudio.cameras.cameras import Cameras, CameraType
 
 
 @dataclass
@@ -34,9 +37,14 @@ class PolarizationDataParserConfig(DataParserConfig):
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
 
+def torch_pose(transform: list[list[float]]):
+    pose = torch.zeros(4, 4, dtype=torch.float32)
+    for i in range(4):
+        pose[i, :] = torch.Tensor(transform[i])
+    return pose
 
 @dataclass
-class PolarizationDataParser:
+class PolarizationDataParser(DataParser):
     config: PolarizationDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
@@ -46,13 +54,34 @@ class PolarizationDataParser:
         pp = PrettyPrinter()
         pp.pprint(meta)
 
-        image_filenames = []
-        poses = []
+
+        image_filenames = [self.config.data / frame["file_path"] for frame in meta["frames"]]
+        poses = [frame["transform_matrix"] for frame in meta["frames"]]
         ...
+
+        camera_to_worlds = torch.stack([torch_pose(pose) for pose in poses])
+        cameras = Cameras(
+            fx=float(meta["fl_x"]),
+            fy=float(meta["fl_y"]),
+            cx=float(meta["cx"]),
+            cy=float(meta["cy"]),
+            camera_to_worlds=camera_to_worlds,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
+        aabb_scale = self.config.scene_scale
+        scene_box = SceneBox(
+            aabb=torch.tensor(
+                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+            )
+        )
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
+        
+        # exit()
+
         return dataparser_outputs
 

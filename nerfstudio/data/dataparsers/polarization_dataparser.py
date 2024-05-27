@@ -5,6 +5,7 @@ from typing import Type, Optional, Literal
 import numpy as np
 import torch
 
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
 from nerfstudio.data.dataparsers.base_dataparser import DataParser, DataParserConfig, DataparserOutputs
@@ -65,7 +66,9 @@ class PolarizationDataParser(DataParser):
             fy=float(meta["fl_y"]),
             cx=float(meta["cx"]),
             cy=float(meta["cy"]),
-            camera_to_worlds=camera_to_worlds,
+            height=int(meta["h"]),
+            width=int(meta["w"]),
+            camera_to_worlds=camera_to_worlds[:, :3, :4],
             camera_type=CameraType.PERSPECTIVE,
         )
 

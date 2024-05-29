@@ -24,7 +24,7 @@ from typing import Dict, Union
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import ViewerConfig
+from nerfstudio.configs.base_config import ViewerConfig, LoggingConfig, LocalWriterConfig
 from nerfstudio.configs.external_methods import ExternalMethodDummyTrainerConfig, get_external_methods
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
@@ -58,6 +58,7 @@ from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.neus import NeuSModelConfig
 from nerfstudio.models.neus_facto import NeuSFactoModelConfig
+from nerfstudio.models.polarization import PolarizationModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.splatfacto import SplatfactoModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
@@ -65,6 +66,7 @@ from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
+from nerfstudio.utils import writer
 
 method_configs: Dict[str, Union[TrainerConfig, ExternalMethodDummyTrainerConfig]] = {}
 descriptions = {
@@ -710,7 +712,7 @@ method_configs["polarization"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
         ),
-        model=NerfactoModelConfig(
+        model=PolarizationModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             average_init_density=0.01,
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
@@ -732,6 +734,17 @@ method_configs["polarization"] = TrainerConfig(
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
+    logging=LoggingConfig(
+        local_writer=LocalWriterConfig(enable=True, stats_to_track=(
+            writer.EventName.ITER_TRAIN_TIME,
+            writer.EventName.TRAIN_RAYS_PER_SEC,
+            writer.EventName.CURR_TEST_PSNR,
+            writer.EventName.VIS_RAYS_PER_SEC,
+            writer.EventName.TEST_RAYS_PER_SEC,
+            writer.EventName.ETA,
+            writer.EventName.TRAIN_LOSS
+        ))
+    )
 )
 
 
